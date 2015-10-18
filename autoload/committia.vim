@@ -27,14 +27,19 @@ function! s:open_window(vcs, type, info, ft)
     let content = call('committia#' . a:vcs . '#' . a:type, [])
 
     let bufname = '__committia_' . a:type . '__'
-    let coltype = a:info['singlecolumn'] ? 'singlecolumn_' : ''
-    execute 'silent' g:committia_{coltype}{a:type}_window_opencmd bufname
+    let created = 0
+    if bufwinnr(bufname) == -1
+        let coltype = a:info['singlecolumn'] ? 'singlecolumn_' : ''
+        execute 'silent' g:committia_{coltype}{a:type}_window_opencmd bufname
+        call append(0, content)
+        execute 0
+        execute 'setlocal ft=' . a:ft
+        setlocal nonumber bufhidden=wipe buftype=nofile readonly nolist nobuflisted noswapfile nomodifiable nomodified
+        let created = 1
+    endif
     let a:info[a:type . '_winnr'] = bufwinnr(bufname)
-    let a:info[a:type . '_bufnr'] = bufnr('%')
-    call append(0, content)
-    execute 0
-    execute 'setlocal ft=' . a:ft
-    setlocal nonumber bufhidden=wipe buftype=nofile readonly nolist nobuflisted noswapfile nomodifiable nomodified
+    let a:info[a:type . '_bufnr'] = bufnr(bufname)
+    return created
 endfunction
 
 
@@ -42,8 +47,8 @@ endfunction
 " the original window.
 " It returns 0 if the window is not open, othewise 1
 function! s:open_diff_window(vcs, info)
-    call s:open_window(a:vcs, 'diff', a:info, 'diff')
-    if getline(1, '$') ==# ['']
+    let created = s:open_window(a:vcs, 'diff', a:info, 'diff')
+    if created && getline(1, '$') ==# ['']
         execute a:info.diff_winnr . 'wincmd c'
         wincmd p
         return 0
